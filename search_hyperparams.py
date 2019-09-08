@@ -1,20 +1,24 @@
 from inspect import currentframe, getframeinfo
+from time import time
 from datetime import datetime
 from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint
-from keras.models import load_model, save_model
+from keras.models import load_model, save_model, Model
 import os
+import keras
 import random
 import numpy as np
 
 from common.config import *
 from common.util import logm, parse_csv, Timer
-from common.dataloader import wav_to_specdata, normalize, spec_load_and_rshp,\
-                              spec_save
+from common.dataloader import (wav_to_specdata, normalize, spec_load_and_rshp,
+                               spec_save)
 from common.datasets import Dataset, TestDataset
 from common.generator import Generator, Heap
 from common.callbacks import TimedStopping
 from evaluation import evaluate
 from model import build_model
+from params import (params, can_shake, create_space,
+                    params_keys_comma_separated, params_values_comma_separated)
 
 
 DEVELOPING = True
@@ -57,8 +61,8 @@ def setup_dirs(conf: Config):
 
 def setup_clbks(conf: Config,
                 setup_tb=False,
-                setup_mc=True,
-                setup_ts=False,
+                setup_mc=False,
+                setup_ts=True,
                 setup_es=False):
     logm('Setting up callbacks', cur_frame=currentframe(), mtype='I')
     callbacks = []
@@ -147,29 +151,32 @@ def setup_heap(conf: Config):
     return heap
 
 
-def train(model: keras.Model, conf: Config, developing=False):
+def train(model: Model, conf: Config, developing=False):
     logm(f'Running train for {conf}', cur_frame=currentframe(),
          mtype='I')
-
-    paths, labels = parse_csv(conf.train_data_csv, conf.data_path)
+    train_paths, train_labels = parse_csv(conf.train_data_csv, conf.data_path)
+    val_paths, val_labels = parse_csv(conf.train_data_csv, conf.data_path)
     if developing:
         logm('Developing is set as true: limiting size of dataset',
              cur_frame=currentframe(), mtype='I')
-        paths_labels = list(zip(paths, labels))
-        random.shuffle(paths_labels)
-        paths, labels = zip(*paths_labels)
-        paths = paths[:100]
-        labels = labels[:100]
+        train_paths_labels = list(zip(train_paths, train_labels))
+        random.shuffle(train_paths_labels)
+        train_paths, train_labels = zip(*train_paths_labels)
+        train_paths = train_paths[:100]
+        train_labels = train_labels[:100]
         epochs = 2
         conf.steps_per_epoch = 10
 
-    dataset = Dataset(paths, labels, shuffle=True, val_split=0.005,
-                      name=conf.dataset_name)
+    train_dataset = Dataset(train_paths, train_labels,
+                            name=conf.dataset_name + '[TRAIN]')
+    val_dataset = Dataset(val_paths, val_labels,
+                          name=conf.dataset_name + '[VALIDATION]')
 
     logm(f'Loading validation data...', cur_frame=currentframe(),
          mtype='I')
-    X_val = np.asarray([conf.data_loader(x) for x in dataset.validation[0]])
-    y_val = dataset.validation[1]
+    X_val = np.asarray([conf.data_loader(x) for x in
+                        val_dataset.validation[0]])
+    y_val = val_dataset.validation[1]
     logm(f'Loading validation data... Done', cur_frame=currentframe(),
          mtype='I')
     logm(f'Validation data shape is {X_val.shape}',
@@ -179,12 +186,13 @@ def train(model: keras.Model, conf: Config, developing=False):
     if conf.use_generator:
         logm('Using generator', cur_frame=currentframe(), mtype='I')
         batch_size = (conf.batch_size if conf.batch_size <
-                      len(dataset.train[0]) else len(dataset.train[0]))
-        train_gen = Generator(paths=dataset.train[0],
-                              labels=dataset.train[1],
+                      len(train_dataset.train[0]) else
+                      len(train_dataset.train[0]))
+        train_gen = Generator(paths=train_dataset()[0],
+                              labels=train_dataset()[1],
                               loader_fn=conf.data_loader,
                               batch_size=batch_size,
-                              heap=setup_heap(conf),
+                              heap=setup_heap(conf) if conf.use_heap else None,
                               expected_shape=(SPEC_SHAPE_HEIGTH,
                                               SPEC_SHAPE_WIDTH,
                                               3))
@@ -195,114 +203,90 @@ def train(model: keras.Model, conf: Config, developing=False):
                                       max_queue_size=96,
                                       workers=12,
                                       steps_per_epoch=conf.steps_per_epoch,
-                                      epochs=conf.epochs if not developing
-                                      else 2,
-                                      callbacks=setup_clbks(
-                                          conf,
-                                          conf.log_dir),
+                                      epochs=epochs,
+                                      callbacks=setup_clbks(conf),
                                       verbose=1)
     else:
-        X_train = np.asarray([conf.data_loader(x) for x in dataset.train[0]])
-        y_train = dataset.train[1]
+        X_train = np.asarray([conf.data_loader(x) for x in train_dataset()[0]])
+        y_train = train_dataset()[1]
         history = model.fit(x=X_train, y=y_train,
                             batch_size=conf.batch_size,
                             validation_data=(X_val, y_val),
-                            epochs=conf.epochs if not developing
-                            else 2,
-                            callbacks=setup_clbks(
-                                conf,
-                                conf.log_dir),
+                            epochs=epochs,
+                            callbacks=setup_clbks(conf),
                             verbose=1)
-    pickle.dump(history,
-                open(os.path.join(conf.log_dir,
-                                  f'history_{conf}.pkl'), 'wb'),
-                protocol=3)
-    return history
+    return history, model
+
+
+def random_search(conf: Config, search_space):
+    logm(f'Running random search for {conf}', cur_frame=currentframe(),
+         mtype='I')
+    logm(f'Created report file at {conf.report_file}',
+         cur_frame=currentframe(), mtype='I')
+
+    with open(conf.report_file, 'w') as output:
+        output.write(f'run,{params_keys_comma_separated()},validation_acc,'
+                     'time_taken\n')
+
+    for i, space in enumerate(search_space):
+        logm(f'Running random search on space {space} - {i+1} of '
+             f'{len(search_space)}', cur_frame=currentframe(), mtype='I')
+        logm('Buiding model', cur_frame=currentframe(), mtype='I')
+        model = build_model(conf, space, input_shape=(SPEC_SHAPE_HEIGTH,
+                                                      SPEC_SHAPE_WIDTH,
+                                                      3))
+        model.summary()
+        with Timer() as t:
+            result, model = train(model, conf, developing=DEVELOPING)
+        time_taken = t.interval
+    
+        validation_acc = np.amax(result.history['val_acc'])
+        with open(conf.report_file, 'a') as output:
+            output.write(f'{conf.run},{params_values_comma_separated()},'
+                         f'{validation_acc},{time_taken}\n')
+        conf.run += 1
+        with open(os.path.join(conf.log_dir, f'hist_acc_{conf.run}.csv'),
+                               'w') as output:
+            output.write(f'epoch,val_acc\n')
+            for itr, val_acc in enumerate(result.history['val_acc']):
+                output.write(f'{itr+1},{val_acc}\n')
+        if SAVE_MODEL:
+            model_path = os.path.join(conf.models_dir, conf.model_name +
+                                      f'_{conf.run}.h5')
+            logm(f'Saving model at {model_path}',
+                 cur_frame=currentframe(), mtype='I')
+            model.save(model_path)
 
 
 def main(conf: Config):
-    model = build_model(conf)
-    conf.model_name = 'mit'
+    logm('>>> Started random hyperparameter search <<<')
+    conf.model_name = f'random_search_{TIME_NOW}'
     logm(f'Current configuration is:\n{repr(conf)}',
          cur_frame=currentframe(), mtype='I')
-    model.summary()
 
     setup_dirs(conf)
-    if TRAIN:
-        logm(f'Start train: {str(conf)}',
-             cur_frame=currentframe(), mtype='I')
-        with Timer() as t:
-            train(model, conf, developing=DEVELOPING)
 
-        logm(f'End train: total time taken: {str(t.interval)}',
-             cur_frame=currentframe(), mtype='I')
-    if SAVE_MODEL:
-        logm(f'Saving model: {str(conf.model_name)} at {conf.model_location}',
-             cur_frame=currentframe(), mtype='I')
-        model.save(conf.model_location + '.h5')
-    if EVALUATE:
-        logm(f'Start evaluation: {str(conf)}',
-             cur_frame=currentframe(), mtype='I')
+    logm(f'Start random search: {str(conf)}', cur_frame=currentframe())
+    with Timer() as t:
+        random_search(conf, create_space(10))
 
-        test_paths, test_labels = parse_csv(conf.test_data_csv,
-                                            conf.data_path)
-        if DEVELOPING:
-            logm('Developing is set as true: limiting size of dataset',
-                 cur_frame=currentframe(), mtype='I')
-            paths_labels = list(zip(test_paths, test_labels))
-            random.shuffle(paths_labels)
-            test_paths, test_labels = zip(*paths_labels)
-            test_paths = test_paths[:10]
-            test_labels = test_labels[:10]
-
-        logm(f'Get test data: total of {len(test_labels)}',
-             cur_frame=currentframe(), mtype='I')
-        if not TRAIN:
-            logm(f'Loading model from {conf.model_location}',
-                 cur_frame=currentframe(), mtype='I')
-            if conf.model_location is None:
-                logm('Model location is None: '
-                     'Load the configuration file of a valid trained '
-                     'model', cur_frame=currentframe(), mtype='E')
-                raise ValueError('Not valid configuration file for evaluation')
-            model = load_model(conf.model_location + '.h5')
-        logm(f'Start evaluation of {str(conf)}',
-             cur_frame=currentframe(), mtype='I')
-        test_dataset = TestDataset(test_paths, test_labels,
-                                   name=conf.dataset_name,
-                                   num_classes=conf.num_classes)
-        with Timer() as t:
-            evaluate(model, conf, test_dataset, 'final')
-        logm(f'End evaluation: total time taken: {str(t.interval)}',
-             cur_frame=currentframe(), mtype='I')
-        if EVALUATE_BEST_MODEL:
-            logm('Evaluating best model', cur_frame=currentframe(), mtype='I')
-            logm(f'Loading model from {conf.model_checkpoint_location}',
-                 cur_frame=currentframe(), mtype='I')
-            model = load_model(conf.model_checkpoint_location +
-                                            '.h5')
-            logm(f'Start evaluation of {str(conf)} (best model)',
-             cur_frame=currentframe(), mtype='I')
-            with Timer() as t:
-                evaluate(model, conf, test_dataset, 'best')
-            logm('End evaluation (best model): total time taken: '
-                 f'{str(t.interval)}', cur_frame=currentframe(), mtype='I')
+    logm(f'End random search: total time taken: {str(t.interval)}',
+         cur_frame=currentframe(), mtype='I')
+    
+    logm('End evaluation (best model): total time taken: '
+            f'{str(t.interval)}', cur_frame=currentframe(), mtype='I')
 
 
 if __name__ == '__main__':
     with open(LOG_FILE, 'a') as log_file:
-        log_file.write('\n---------------------------------------------\n')
-        log_file.write(f'LOG: {__file__}: {datetime.now()}\n')
+        log_file.write(f'\n{"="*80}\n')
+        log_file.write(f'LOG: {__file__}:{datetime.now()}\n')
     try:
-        if (not TRAIN and EVALUATE) or LOAD_CONF:
-            if CONF_LOCATION is None:
-                raise Exception('Must set CONF_LOCATION')
-            conf = Config.frompicke(CONF_LOCATION)
-        else:
-            conf = Config(conf_name=f'{__file__}_{SAMPLING_RATE}_'
-                          f'{MAX_SECONDS_PER_RUN}_{STEPS_PER_EPOCH}',
-                          data_loader=wav_to_specdata,
-                          use_tb_embeddings=TB_EMBEDDINGS)
+        conf = Config(params=params,
+                      conf_name=f'{__file__}_{SAMPLING_RATE}_'
+                      f'{MAX_SECONDS_PER_RUN}_{STEPS_PER_EPOCH}',
+                      data_loader=wav_to_specdata,
+                      use_tb_embeddings=TB_EMBEDDINGS)
         main(conf)
     except Exception as err:
         logm(f'FATAL ERROR: {str(err)}', cur_frame=currentframe(),
