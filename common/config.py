@@ -11,7 +11,7 @@ from datetime import datetime
 """
 Default configuration properties:
 """
-DATASET_NAME = 'data/'
+DATASET_NAME = 'CPD_v0-1a'
 SAMPLING_RATE = 8000
 MAX_SECONDS_PER_RUN = None
 NUM_CLASSES = 3
@@ -24,10 +24,10 @@ LOG_DIR = 'logs'
 MODELS_DIR = 'models'
 MODELS_CHECKPOINT_DIR = 'models/checkpoints'
 PREFIX_PATH = os.getcwd()
-DATA_PATH = os.path.join('data', 'wav', DATASET_NAME, 'dev')
-TEST_DATA_CSV = os.path.join(PREFIX_PATH, DATA_PATH,
+DATA_PATH = os.path.join('.', 'dev')
+TEST_DATA_CSV = os.path.join(DATA_PATH,
                              f'TE-{DATASET_NAME}_shuffled_balanced.csv')
-TRAIN_DATA_CSV = os.path.join(PREFIX_PATH, DATA_PATH,
+TRAIN_DATA_CSV = os.path.join(DATA_PATH,
                               f'TR-{DATASET_NAME}_shuffled_balanced.csv')
 EVAL_DATA_CSV = None
 USE_GENERATOR = True
@@ -37,11 +37,11 @@ TB_EMBEDDINGS = False
 if SAMPLING_RATE == 8000:
     SPEC_SHAPE_HEIGTH = 81
     SPEC_SHAPE_WIDTH = 499
-    
+
 if SAMPLING_RATE == 16000:
     SPEC_SHAPE_HEIGTH = 161
     SPEC_SHAPE_WIDTH = 499
-    
+
 if SAMPLING_RATE == 48000:
     SPEC_SHAPE_HEIGTH = 481
     SPEC_SHAPE_WIDTH = 499
@@ -52,9 +52,10 @@ TRAIN = True
 SAVE_MODEL = True
 EVALUATE = True
 EVALUATE_BEST_MODEL = True
-HEAP_DIR = '/mnt/sda1/tmp/mit'
-LOG_FILE = '/home/gris/mit/log.txt'
-REPORT_FILE = '/home/gris/mit/report.csv'
+HEAP_DIR = 'tmp'
+TIME_NOW = str(datetime.now()).replace(':', '-').replace(' ', '.')
+LOG_FILE = f'search_log.log'
+REPORT_FILE = f'report_{TIME_NOW}.csv'
 
 
 """
@@ -66,9 +67,12 @@ class Config:
     """
         Config class for settings management
     """
+
     def __init__(self,
                  data_loader,
+                 params,
                  conf_name='conf',
+                 report_file=REPORT_FILE,
                  use_heap=USE_HEAP,
                  use_generator=USE_GENERATOR,
                  use_tb_embeddings=TB_EMBEDDINGS,
@@ -82,6 +86,8 @@ class Config:
 
         :param data_loader: function
             Data loader callable object.
+        :param params: dict
+            Hyperparameters dict
         :param conf_name: name of this configuration object. The configuration
             will be automatically stored with this name.
         :param use_heap: bool
@@ -101,15 +107,18 @@ class Config:
         """
         # Default configurations
         self.data_loader = data_loader
+        self.params = params
         self.batch_size = batch_size
         self.use_generator = use_generator
         self.use_heap = use_heap
+        self.report_file = report_file
         self.use_tb_embeddings = use_tb_embeddings
         self.epochs = epochs
         self.learning_rate = learning_rate
         self.num_classes = num_classes
 
         self._model_name = None
+        self._run = 0
         self._heap_dir = os.path.join(PREFIX_PATH, HEAP_DIR)
         self._log_dir = os.path.join(PREFIX_PATH, LOG_DIR)
         self._models_dir = os.path.join(PREFIX_PATH,
@@ -218,6 +227,14 @@ class Config:
     @property
     def log_dir(self):
         return self._log_dir
+
+    @property
+    def run(self):
+        return self._run
+
+    @run.setter
+    def run(self, number):
+        self._run = number
 
     @property
     def models_checkpoint_dir(self):
@@ -373,7 +390,10 @@ class Config:
                 '\teval_data_csv={}\n'
                 '\ttest_data_csv={}\n'
                 '\twhen={}\n'
-                'Attributes with None value has not been set yet.'.format(
+                'Parameters:\n{} [...]\n\n'
+                'Attributes with None value has not been set yet.'
+                f'\n{("-"*80)}\n'
+                .format(
                     self.name,
                     self.data_loader,
                     self.model_location,
@@ -392,7 +412,8 @@ class Config:
                     self.train_data_csv,
                     self.eval_data_csv,
                     self.test_data_csv,
-                    self._when))
+                    self._when,
+                    str(self.params)[:255]))
 
     def dump(self):
         pickle.dump(self, open(f'{str(self)}.pkl', 'wb'), protocol=3)

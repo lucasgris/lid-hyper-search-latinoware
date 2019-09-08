@@ -14,6 +14,7 @@ from common.util import logm
 import shutil
 from random import random
 from inspect import currentframe, getframeinfo
+from keras.utils import Sequence
 
 
 class Heap:
@@ -151,7 +152,7 @@ class Heap:
         shutil.rmtree(self.heap_dir)
 
 
-class Generator(keras.utils.Sequence):
+class Generator(Sequence):
     """
     Generator for data batching. See keras.utils.Sequence.
     """

@@ -11,7 +11,7 @@ class TimedStopping(Callback):
     Use this for performance experiments and analysis.
     """
     # https://github.com/keras-team/keras/issues/1625
-    def __init__(self, seconds=config.MAX_SECONDS_PER_RUN,
+    def __init__(self, seconds=MAX_SECONDS_PER_RUN,
                  safety_factor=1, verbose=1):
         """
         Creates a new TimedStopping with the provided time.
