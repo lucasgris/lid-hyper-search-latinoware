@@ -13,12 +13,12 @@ Default configuration properties:
 """
 DATASET_NAME = 'CPD_v0-1a'
 SAMPLING_RATE = 8000
-MAX_SECONDS_PER_RUN = None
+MAX_SECONDS_PER_RUN = 259200
 NUM_CLASSES = 3
 STEPS_PER_EPOCH = None
 SECONDS = 5
 EPOCHS = 8
-BATCH_SIZE = 1
+BATCH_SIZE = 1  # Will not use
 LEARNING_RATE = 0.0001
 LOG_DIR = 'logs'
 MODELS_DIR = 'models'
@@ -34,6 +34,7 @@ USE_GENERATOR = True
 USE_HEAP = False
 TB_EMBEDDINGS = False
 
+CHANNELS = 1
 if SAMPLING_RATE == 8000:
     SPEC_SHAPE_HEIGTH = 81
     SPEC_SHAPE_WIDTH = 499
@@ -416,4 +417,9 @@ class Config:
                     str(self.params)[:255]))
 
     def dump(self):
-        pickle.dump(self, open(f'{str(self)}.pkl', 'wb'), protocol=3)
+        os.makedirs('confs', exist_ok=True)
+        pickle.dump(self, open(os.path.join('confs', f'{str(self)}.pkl'),
+                    'wb'), protocol=3)
+    
+    def delete_file(self):
+        os.remove(os.path.join('confs', f'{str(self)}.pkl'))
