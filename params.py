@@ -28,8 +28,10 @@ params = {
     'filters_conv2d_8': [None, 32, 64, 100, 200, 300, 400, 500],
     'maxpooling_8': [None, 2],
     'dropout8': [0.2, 0.3, 0.4, 0.5],
+    'dropout_dense': [0.2, 0.3, 0.4],
     'dense_1': [None, 128, 256, 512],
     'dense_2': [None, 128, 256, 512],
+    'dense_3': [None, 128, 256, 512],
     'opt': [keras.optimizers.Adam, keras.optimizers.RMSprop,
             keras.optimizers.Adagrad],
     'lr': [0.000001, 0.00001, 0.0001, 0.001]
@@ -65,17 +67,18 @@ def params_keys_comma_separated():
     return s[:-1]
 
 
-def params_values(p):
+def params_values(space):
     values = []
-    for k in p:
-        values.append(str(p[k] if not callable(p[k]) else p[k].__name__))
+    for k in space:
+        values.append(str(space[k] if not callable(space[k]) else
+                      space[k].__name__))
     return values
 
 
-def params_values_comma_separated(p):
+def params_values_comma_separated(space):
     s = ''
-    for k in p:
-        s = str(p[k] if not callable(p[k]) else p[k].__name__) + ','
+    for value in params_values(space):
+        s += str(value) + ','
     return s[:-1]
 
 
