@@ -3,10 +3,12 @@ from time import time
 from datetime import datetime
 from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint
 from keras.models import load_model, save_model, Model
+from keras import backend as K 
 import os
 import keras
 import random
 import numpy as np
+
 
 from common.config import *
 from common.util import logm, parse_csv, Timer
@@ -151,7 +153,7 @@ def setup_heap(conf: Config):
     return heap
 
 
-def train(model: Model, conf: Config, developing=False):
+def train(model: Model, conf: Config, batch_size, developing=False):
     logm(f'Running train for {conf}', cur_frame=currentframe(),
          mtype='I')
     train_paths, train_labels = parse_csv(conf.train_data_csv, conf.data_path)
@@ -164,44 +166,44 @@ def train(model: Model, conf: Config, developing=False):
         train_paths, train_labels = zip(*train_paths_labels)
         train_paths = train_paths[:100]
         train_labels = train_labels[:100]
+        val_paths = val_paths[:10]
+        val_labels = val_labels[:10]
         epochs = 2
         conf.steps_per_epoch = 10
 
     train_dataset = Dataset(train_paths, train_labels,
-                            name=conf.dataset_name + '[TRAIN]')
+                            name=conf.dataset_name + '[TRAIN]',
+                            num_classes=NUM_CLASSES)
     val_dataset = Dataset(val_paths, val_labels,
-                          name=conf.dataset_name + '[VALIDATION]')
+                          name=conf.dataset_name + '[VALIDATION]',
+                          num_classes=NUM_CLASSES)
 
     logm(f'Loading validation data...', cur_frame=currentframe(),
          mtype='I')
-    X_val = np.asarray([conf.data_loader(x) for x in
-                        val_dataset.validation[0]])
-    y_val = val_dataset.validation[1]
+    X_val = np.asarray([conf.data_loader(x) for x in val_dataset()[0]])
+    y_val = val_dataset()[1]
     logm(f'Loading validation data... Done', cur_frame=currentframe(),
          mtype='I')
     logm(f'Validation data shape is {X_val.shape}',
          cur_frame=currentframe(),
          mtype='I')
-
     if conf.use_generator:
         logm('Using generator', cur_frame=currentframe(), mtype='I')
-        batch_size = (conf.batch_size if conf.batch_size <
-                      len(train_dataset.train[0]) else
-                      len(train_dataset.train[0]))
         train_gen = Generator(paths=train_dataset()[0],
                               labels=train_dataset()[1],
                               loader_fn=conf.data_loader,
-                              batch_size=batch_size,
+                              batch_size=1,
+                            #   batch_size=int(batch_size),
                               heap=setup_heap(conf) if conf.use_heap else None,
                               expected_shape=(SPEC_SHAPE_HEIGTH,
                                               SPEC_SHAPE_WIDTH,
-                                              3))
+                                              CHANNELS))
         history = model.fit_generator(generator=train_gen,
                                       validation_data=(X_val,
                                                        y_val),
-                                      use_multiprocessing=True,
-                                      max_queue_size=96,
-                                      workers=12,
+                                    #   use_multiprocessing=True,
+                                    #   max_queue_size=96,
+                                    #   workers=12,
                                       steps_per_epoch=conf.steps_per_epoch,
                                       epochs=epochs,
                                       callbacks=setup_clbks(conf),
@@ -232,17 +234,24 @@ def random_search(conf: Config, search_space):
         logm(f'Running random search on space {space} - {i+1} of '
              f'{len(search_space)}', cur_frame=currentframe(), mtype='I')
         logm('Buiding model', cur_frame=currentframe(), mtype='I')
-        model = build_model(conf, space, input_shape=(SPEC_SHAPE_HEIGTH,
-                                                      SPEC_SHAPE_WIDTH,
-                                                      3))
+        try:
+            K.clear_session()
+            model = build_model(conf, space, input_shape=(SPEC_SHAPE_HEIGTH,
+                                                          SPEC_SHAPE_WIDTH,
+                                                          CHANNELS))
+        except ValueError as err:
+            logm(f'Error when building the model: {str(err)} ',
+                 cur_frame=currentframe(), mtype='E')
+            continue
         model.summary()
         with Timer() as t:
-            result, model = train(model, conf, developing=DEVELOPING)
+            result, model = train(model, conf, space['batch_size'],
+                                  developing=DEVELOPING)
         time_taken = t.interval
     
         validation_acc = np.amax(result.history['val_acc'])
         with open(conf.report_file, 'a') as output:
-            output.write(f'{conf.run},{params_values_comma_separated()},'
+            output.write(f'{conf.run},{params_values_comma_separated(space)},'
                          f'{validation_acc},{time_taken}\n')
         conf.run += 1
         with open(os.path.join(conf.log_dir, f'hist_acc_{conf.run}.csv'),
@@ -287,9 +296,10 @@ if __name__ == '__main__':
                       f'{MAX_SECONDS_PER_RUN}_{STEPS_PER_EPOCH}',
                       data_loader=wav_to_specdata,
                       use_tb_embeddings=TB_EMBEDDINGS)
+        conf.max_seconds_per_run = MAX_SECONDS_PER_RUN
         main(conf)
     except Exception as err:
         logm(f'FATAL ERROR: {str(err)}', cur_frame=currentframe(),
              mtype='E')
-        os.remove(str(conf) + '.pkl')
+        conf.delete_file()
         raise err
