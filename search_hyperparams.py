@@ -233,6 +233,11 @@ def random_search(conf: Config, search_space):
     for i, space in enumerate(search_space):
         logm(f'Running random search on space {space} - {i+1} of '
              f'{len(search_space)}', cur_frame=currentframe(), mtype='I')
+
+        if datetime.now() > conf.time_limit:
+            logm('Time limit reached: end random search',
+                 cur_frame=currentframe(), mtype='I')
+            return
         logm('Buiding model', cur_frame=currentframe(), mtype='I')
         try:
             K.clear_session()
@@ -269,6 +274,7 @@ def random_search(conf: Config, search_space):
 
 def main(conf: Config):
     logm('>>> Started random hyperparameter search <<<')
+
     conf.model_name = f'random_search_{TIME_NOW}'
     logm(f'Current configuration is:\n{repr(conf)}',
          cur_frame=currentframe(), mtype='I')
@@ -287,6 +293,10 @@ def main(conf: Config):
 
 
 if __name__ == '__main__':
+    import sys
+    if len(sys.argv) > 2:
+        time_limit = datetime.strptime(sys.argv[1] + ' ' + sys.argv[2],
+                                       "%d/%m/%Y %H:%M:%S")
     with open(LOG_FILE, 'a') as log_file:
         log_file.write(f'\n{"="*80}\n')
         log_file.write(f'LOG: {__file__}:{datetime.now()}\n')
@@ -297,6 +307,7 @@ if __name__ == '__main__':
                       data_loader=wav_to_specdata,
                       use_tb_embeddings=TB_EMBEDDINGS)
         conf.max_seconds_per_run = MAX_SECONDS_PER_RUN
+        conf.time_limit = time_limit
         main(conf)
     except Exception as err:
         logm(f'FATAL ERROR: {str(err)}', cur_frame=currentframe(),

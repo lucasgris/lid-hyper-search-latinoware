@@ -118,6 +118,7 @@ class Config:
         self.learning_rate = learning_rate
         self.num_classes = num_classes
 
+        self._time_limit = None
         self._model_name = None
         self._run = 0
         self._heap_dir = os.path.join(PREFIX_PATH, HEAP_DIR)
@@ -244,6 +245,14 @@ class Config:
     @max_seconds_per_run.setter
     def max_seconds_per_run(self, max_seconds_per_run: int):
         self._max_seconds_per_run = max_seconds_per_run
+
+    @property
+    def time_limit(self):
+        return self._time_limit
+
+    @time_limit.setter
+    def time_limit(self, time_limit: datetime):
+        self._time_limit = time_limit
 
     @dataset_name.setter
     def dataset_name(self, dataset_name: str):
