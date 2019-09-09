@@ -12,7 +12,7 @@ import os
 import threading
 from common.util import logm
 import shutil
-from random import random
+import random
 from inspect import currentframe, getframeinfo
 from keras.utils import Sequence
 

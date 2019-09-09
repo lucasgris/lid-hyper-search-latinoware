@@ -13,8 +13,8 @@ from inspect import currentframe, getframeinfo
 import numpy as np
 import collections
 import sklearn
-import random
 import keras
+import random
 from common.util import logm
 
 

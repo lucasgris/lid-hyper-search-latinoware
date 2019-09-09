@@ -7,7 +7,7 @@ import librosa
 import os
 import cv2
 
-from common.config import SPEC_SHAPE_HEIGTH, SPEC_SHAPE_WIDTH
+from common.config import SPEC_SHAPE_HEIGTH, SPEC_SHAPE_WIDTH, CHANNELS
 from common.config import SAMPLING_RATE
 from common.util import logm
 
@@ -112,11 +112,11 @@ def spec_load_and_rshp(path, expected_fmt='png', remove_bad_file=True):
         if format == 'png':
             spc = np.array(Image.open(path)).reshape(SPEC_SHAPE_HEIGTH,
                                                      SPEC_SHAPE_WIDTH,
-                                                     3)
+                                                     CHANNELS)
         if format == 'npy':
              spc = np.load(path).reshape(SPEC_SHAPE_HEIGTH,
                                          SPEC_SHAPE_WIDTH,
-                                         3)
+                                         CHANNELS)
         spc = normalize(spc)
     except Exception as ex:
         logm(f'Bad file: {str(ex)} (when trying to load {path})',
@@ -129,12 +129,12 @@ def spec_load_and_rshp(path, expected_fmt='png', remove_bad_file=True):
                      cur_frame=currentframe(), mtype='W')
             else:
                 os.remove(path)
-        return np.zeros(shape=(SPEC_SHAPE_HEIGTH, SPEC_SHAPE_WIDTH, 3))
+        return np.zeros(shape=(SPEC_SHAPE_HEIGTH, SPEC_SHAPE_WIDTH, CHANNELS))
     return spc
 
 
 def wav_to_specdata(path,
-                    convert_to_rgb=True,
+                    convert_to_rgb=False,
                     normalize_pixels=True,
                     duration=5):
     """
@@ -143,7 +143,7 @@ def wav_to_specdata(path,
     Args:
         path (str): path to the audio file (wav).
         convert_to_rgb (bool, optional): If True will convert the spectrogram
-            data to rgb (3 channels). Defaults to True.
+            data to rgb (3 channels). Defaults to False.
         normalize_pixels (bool, optional): If True will normalize the data
             in the range [0, 1]. See normalize. Defaults to True.
         duration (int, optional): Duration to load the data. Defaults to 5.
