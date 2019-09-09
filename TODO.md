@@ -1,8 +1,9 @@
 # TODO
 
 - [ ] Time limit
-- [ ] Timed stopping callback
+- [x] Timed stopping callback
 
 # Bugs
 
-- [ ] search_hyperparameters.py now working
+- [x] search_hyperparameters.py not working
+- [x] Exceção ao construir o modelo
