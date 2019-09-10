@@ -11,25 +11,23 @@ from datetime import datetime
 """
 Default configuration properties:
 """
-DATASET_NAME = 'CPD_v0-1a'
+DATASET_NAME = 'SLD'
 SAMPLING_RATE = 8000
-MAX_SECONDS_PER_RUN = 259200
+MAX_SECONDS_PER_RUN = 172800
 NUM_CLASSES = 3
-STEPS_PER_EPOCH = None
+STEPS_PER_EPOCH = 1000
 SECONDS = 5
 EPOCHS = 8
-BATCH_SIZE = 1  # Will not use
+BATCH_SIZE = -1  # Will not use
 LEARNING_RATE = 0.0001
 LOG_DIR = 'logs'
 MODELS_DIR = 'models'
 MODELS_CHECKPOINT_DIR = 'models/checkpoints'
 PREFIX_PATH = os.getcwd()
-DATA_PATH = os.path.join('.', 'dev')
-TEST_DATA_CSV = os.path.join(DATA_PATH,
-                             f'TE-{DATASET_NAME}_shuffled_balanced.csv')
-TRAIN_DATA_CSV = os.path.join(DATA_PATH,
-                              f'TR-{DATASET_NAME}_shuffled_balanced.csv')
-EVAL_DATA_CSV = None
+DATA_PATH = os.path.join('/', 'home', 'ec2-user', 'datasets', 'SLD')
+EVAL_DATA_CSV = os.path.join(DATA_PATH, 'validation.csv')
+TRAIN_DATA_CSV = os.path.join(DATA_PATH, 'train.csv')
+TEST_DATA_CSV = None
 USE_GENERATOR = True
 USE_HEAP = False
 TB_EMBEDDINGS = False

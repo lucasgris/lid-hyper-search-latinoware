@@ -248,6 +248,11 @@ class Dataset:
             return self._name
         return super().__str__()
 
+    def __len__(self):
+        """
+        Returns the size of all data.
+        """
+        return len(self._all_data)
 
 class TestDataset(Dataset):
     """

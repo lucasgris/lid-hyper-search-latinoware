@@ -23,7 +23,7 @@ from params import (params, can_shake, create_space,
                     params_keys_comma_separated, params_values_comma_separated)
 
 
-DEVELOPING = True
+DEVELOPING = False
 
 
 def setup_dirs(conf: Config):
@@ -157,7 +157,7 @@ def train(model: Model, conf: Config, batch_size, developing=False):
     logm(f'Running train for {conf}', cur_frame=currentframe(),
          mtype='I')
     train_paths, train_labels = parse_csv(conf.train_data_csv, conf.data_path)
-    val_paths, val_labels = parse_csv(conf.train_data_csv, conf.data_path)
+    val_paths, val_labels = parse_csv(conf.eval_data_csv, conf.data_path)
     if developing:
         logm('Developing is set as true: limiting size of dataset',
              cur_frame=currentframe(), mtype='I')
@@ -283,7 +283,7 @@ def main(conf: Config):
 
     logm(f'Start random search: {str(conf)}', cur_frame=currentframe())
     with Timer() as t:
-        random_search(conf, create_space(10))
+        random_search(conf, create_space(100))
 
     logm(f'End random search: total time taken: {str(t.interval)}',
          cur_frame=currentframe(), mtype='I')
