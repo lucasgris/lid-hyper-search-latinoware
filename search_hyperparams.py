@@ -8,7 +8,8 @@ import os
 import keras
 import random
 import numpy as np
-
+import pprint
+import sys
 
 from common.config import *
 from common.util import logm, parse_csv, Timer
@@ -23,8 +24,7 @@ from params import (params, can_shake, create_space,
                     params_keys_comma_separated, params_values_comma_separated)
 
 
-DEVELOPING = False
-
+DEVELOPING = True
 
 def setup_dirs(conf: Config):
     logm('Setting up directories...', cur_frame=currentframe(),
@@ -153,6 +153,26 @@ def setup_heap(conf: Config):
     return heap
 
 
+def test_space(spaces, remove_bad_topologies=True):
+    pp = pprint.PrettyPrinter(indent=4)
+    for i, space in enumerate(spaces):
+        logm(f'Testing space [{i+1} of {len(spaces)}]',
+             cur_frame=currentframe(), mtype='I')
+        pp.pprint(space)
+        try:
+            K.clear_session()
+            model = build_model(conf, space, input_shape=(SPEC_SHAPE_HEIGTH,
+                                                          SPEC_SHAPE_WIDTH,
+                                                          CHANNELS))
+        except ValueError as err:
+            logm(f'Failed when building the model: {str(err)} ',
+                 cur_frame=currentframe(), mtype='I')
+            if remove_bad_topologies:
+                del space
+            continue
+    return spaces
+
+
 def train(model: Model, conf: Config, batch_size, developing=False):
     logm(f'Running train for {conf}', cur_frame=currentframe(),
          mtype='I')
@@ -177,6 +197,10 @@ def train(model: Model, conf: Config, batch_size, developing=False):
     val_dataset = Dataset(val_paths, val_labels,
                           name=conf.dataset_name + '[VALIDATION]',
                           num_classes=NUM_CLASSES)
+    
+    epochs = int(len(train_dataset)//(batch_size*conf.steps_per_epoch)) + 1
+    logm(f'Calculated number of epochs to process all data at least 1 time: {epochs}',
+         cur_frame=currentframe())
 
     logm(f'Loading validation data...', cur_frame=currentframe(),
          mtype='I')
@@ -192,8 +216,7 @@ def train(model: Model, conf: Config, batch_size, developing=False):
         train_gen = Generator(paths=train_dataset()[0],
                               labels=train_dataset()[1],
                               loader_fn=conf.data_loader,
-                              batch_size=1,
-                            #   batch_size=int(batch_size),
+                              batch_size=int(batch_size),
                               heap=setup_heap(conf) if conf.use_heap else None,
                               expected_shape=(SPEC_SHAPE_HEIGTH,
                                               SPEC_SHAPE_WIDTH,
@@ -201,9 +224,9 @@ def train(model: Model, conf: Config, batch_size, developing=False):
         history = model.fit_generator(generator=train_gen,
                                       validation_data=(X_val,
                                                        y_val),
-                                    #   use_multiprocessing=True,
-                                    #   max_queue_size=96,
-                                    #   workers=12,
+                                      use_multiprocessing=True,
+                                      max_queue_size=96,
+                                      workers=12,
                                       steps_per_epoch=conf.steps_per_epoch,
                                       epochs=epochs,
                                       callbacks=setup_clbks(conf),
@@ -212,7 +235,7 @@ def train(model: Model, conf: Config, batch_size, developing=False):
         X_train = np.asarray([conf.data_loader(x) for x in train_dataset()[0]])
         y_train = train_dataset()[1]
         history = model.fit(x=X_train, y=y_train,
-                            batch_size=conf.batch_size,
+                            batch_size=int(batch_size),
                             validation_data=(X_val, y_val),
                             epochs=epochs,
                             callbacks=setup_clbks(conf),
@@ -234,7 +257,7 @@ def random_search(conf: Config, search_space):
         logm(f'Running random search on space {space} - {i+1} of '
              f'{len(search_space)}', cur_frame=currentframe(), mtype='I')
 
-        if datetime.now() > conf.time_limit:
+        if conf.time_limit is not None and datetime.now() > conf.time_limit:
             logm('Time limit reached: end random search',
                  cur_frame=currentframe(), mtype='I')
             return
@@ -280,10 +303,13 @@ def main(conf: Config):
          cur_frame=currentframe(), mtype='I')
 
     setup_dirs(conf)
-
+    logm(f'Total runs: {conf.runs}', cur_frame=currentframe())
+    logm('Creating space', cur_frame=currentframe())
+    space = create_space(conf.runs)
+    space = test_space(space, remove_bad_topologies=True)
     logm(f'Start random search: {str(conf)}', cur_frame=currentframe())
     with Timer() as t:
-        random_search(conf, create_space(100))
+        random_search(conf, space)
 
     logm(f'End random search: total time taken: {str(t.interval)}',
          cur_frame=currentframe(), mtype='I')
@@ -291,23 +317,32 @@ def main(conf: Config):
     logm('End evaluation (best model): total time taken: '
             f'{str(t.interval)}', cur_frame=currentframe(), mtype='I')
 
-
 if __name__ == '__main__':
-    import sys
-    if len(sys.argv) > 2:
-        time_limit = datetime.strptime(sys.argv[1] + ' ' + sys.argv[2],
-                                       "%d/%m/%Y %H:%M:%S")
+    import argparse 
+    parser = argparse.ArgumentParser(description='Random hyperparameter search for LID.')
+    parser.add_argument('train', help='Train csv file.')
+    parser.add_argument('test', help='Test or evaluation csv file for model evaluation.')
+    parser.add_argument('data_path', help='Data path where the dataset is located')
+    parser.add_argument('-l', '--time_limit', help='Time limit on format "%d/%m/%Y-%H:%M:%S"',
+                        default=None)
+    parser.add_argument('-s', '--steps_per_epoch', help='Steps per epoch', default=STEPS_PER_EPOCH, type=int)
+    parser.add_argument('-m', '--max_sec_per_run', help='Max seconds for each experiment', default=MAX_SECONDS_PER_RUN, type=int)
+    parser.add_argument('-r', '--runs', help='Space size for testing', default=RUNS, type=int)
+    args = parser.parse_args()
     with open(LOG_FILE, 'a') as log_file:
         log_file.write(f'\n{"="*80}\n')
         log_file.write(f'LOG: {__file__}:{datetime.now()}\n')
     try:
         conf = Config(params=params,
                       conf_name=f'{__file__}_{SAMPLING_RATE}_'
-                      f'{MAX_SECONDS_PER_RUN}_{STEPS_PER_EPOCH}',
+                      f'{args.max_sec_per_run}_{args.steps_per_epoch}',
                       data_loader=wav_to_specdata,
                       use_tb_embeddings=TB_EMBEDDINGS)
-        conf.max_seconds_per_run = MAX_SECONDS_PER_RUN
-        conf.time_limit = time_limit
+        conf.steps_per_epoch = args.steps_per_epoch
+        conf.max_seconds_per_run = args.max_sec_per_run
+        if args.time_limit is not None:
+            conf.time_limit =  datetime.strptime(args.time_limit, "%d/%m/%Y-%H:%M:%S")
+        conf.runs = args.runs
         main(conf)
     except Exception as err:
         logm(f'FATAL ERROR: {str(err)}', cur_frame=currentframe(),

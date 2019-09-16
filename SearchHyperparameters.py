@@ -15,6 +15,7 @@ import keras
 import random
 import numpy as np
 import pprint
+import sys
 
 from common.config import *
 from common.util import logm, parse_csv, Timer
@@ -32,9 +33,9 @@ from params import (params, can_shake, create_space,
 # In[2]:
 
 
-DEVELOPING = False
-RUNS = 100
-TIME_LIMIT = "25/09/2019 12:00:00"
+DEVELOPING = True
+RUNS = int(sys.argv[1])
+TIME_LIMIT = sys.argv[2] if len(sys.argv) > 2 else None # "25/09/2019 12:00:00"
 
 
 # In[3]:
@@ -276,7 +277,7 @@ def random_search(conf: Config, search_space):
         logm(f'Running random search on space {space} - {i+1} of '
              f'{len(search_space)}', cur_frame=currentframe(), mtype='I')
 
-        if datetime.now() > conf.time_limit:
+        if conf.time_limit is not None and datetime.now() > conf.time_limit:
             logm('Time limit reached: end random search',
                  cur_frame=currentframe(), mtype='I')
             return
@@ -342,7 +343,6 @@ def main(conf: Config):
 # In[ ]:
 
 
-time_limit = datetime.strptime(TIME_LIMIT, "%d/%m/%Y %H:%M:%S")
 with open(LOG_FILE, 'a') as log_file:
         log_file.write(f'\n{"="*80}\n')
         log_file.write(f'LOG SearchHyperparameters.ipynb:{datetime.now()}\n')
@@ -352,7 +352,9 @@ conf = Config(params=params,
               data_loader=wav_to_specdata,
               use_tb_embeddings=TB_EMBEDDINGS)
 conf.max_seconds_per_run = MAX_SECONDS_PER_RUN
-conf.time_limit = time_limit
+if TIME_LIMIT is not None:
+    time_limit = datetime.strptime(TIME_LIMIT, "%d/%m/%Y %H:%M:%S")
+    conf.time_limit = time_limit
 try:
     main(conf)
 except Exception as err:

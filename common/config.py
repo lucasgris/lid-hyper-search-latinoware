@@ -17,6 +17,7 @@ MAX_SECONDS_PER_RUN = 172800
 NUM_CLASSES = 3
 STEPS_PER_EPOCH = 1000
 SECONDS = 5
+RUNS = 100
 EPOCHS = 8
 BATCH_SIZE = -1  # Will not use
 LEARNING_RATE = 0.0001
@@ -24,9 +25,9 @@ LOG_DIR = 'logs'
 MODELS_DIR = 'models'
 MODELS_CHECKPOINT_DIR = 'models/checkpoints'
 PREFIX_PATH = os.getcwd()
-DATA_PATH = os.path.join('/', 'home', 'ec2-user', 'datasets', 'SLD')
-EVAL_DATA_CSV = os.path.join(DATA_PATH, 'validation.csv')
-TRAIN_DATA_CSV = os.path.join(DATA_PATH, 'train.csv')
+DATA_PATH = os.path.join('/', 'home', 'lucas', 'datasets', 'SLD')
+EVAL_DATA_CSV = None # os.path.join(DATA_PATH, 'validation.csv')
+TRAIN_DATA_CSV = None # os.path.join(DATA_PATH, 'train.csv')
 TEST_DATA_CSV = None
 USE_GENERATOR = True
 USE_HEAP = False
@@ -119,6 +120,7 @@ class Config:
         self._time_limit = None
         self._model_name = None
         self._run = 0
+        self._runs = RUNS
         self._heap_dir = os.path.join(PREFIX_PATH, HEAP_DIR)
         self._log_dir = os.path.join(PREFIX_PATH, LOG_DIR)
         self._models_dir = os.path.join(PREFIX_PATH,
@@ -243,6 +245,14 @@ class Config:
     @max_seconds_per_run.setter
     def max_seconds_per_run(self, max_seconds_per_run: int):
         self._max_seconds_per_run = max_seconds_per_run
+
+    @property
+    def runs(self):
+        return self._runs
+
+    @runs.setter
+    def runs(self, runs: int):
+        self._runs = runs
 
     @property
     def time_limit(self):
