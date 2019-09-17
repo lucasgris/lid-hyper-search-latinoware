@@ -57,7 +57,7 @@ def create_space(length=1):
                 if shaked > 0:
                     combination[k] = shaked
         space.append(combination)
-    return space if len(space) > 1 else space[0]
+    return space
 
 
 def params_keys_comma_separated():

@@ -24,7 +24,7 @@ from params import (params, can_shake, create_space,
                     params_keys_comma_separated, params_values_comma_separated)
 
 
-DEVELOPING = True
+DEVELOPING = False
 
 def setup_dirs(conf: Config):
     logm('Setting up directories...', cur_frame=currentframe(),
@@ -176,6 +176,7 @@ def test_space(spaces, remove_bad_topologies=True):
 def train(model: Model, conf: Config, batch_size, developing=False):
     logm(f'Running train for {conf}', cur_frame=currentframe(),
          mtype='I')
+    print
     train_paths, train_labels = parse_csv(conf.train_data_csv, conf.data_path)
     val_paths, val_labels = parse_csv(conf.eval_data_csv, conf.data_path)
     if developing:
@@ -343,6 +344,8 @@ if __name__ == '__main__':
         if args.time_limit is not None:
             conf.time_limit =  datetime.strptime(args.time_limit, "%d/%m/%Y-%H:%M:%S")
         conf.runs = args.runs
+        conf.train_data_csv = args.train
+        conf.eval_data_csv = args.test
         main(conf)
     except Exception as err:
         logm(f'FATAL ERROR: {str(err)}', cur_frame=currentframe(),
