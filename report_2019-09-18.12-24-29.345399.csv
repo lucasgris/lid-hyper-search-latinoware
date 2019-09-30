@@ -1,0 +1,5 @@
+run,batch_size,filters_conv2d_1,maxpooling_1,dropout1,filters_conv2d_2,maxpooling_2,dropout2,filters_conv2d_3,maxpooling_3,dropout3,filters_conv2d_4,maxpooling_4,dropout4,filters_conv2d_5,maxpooling_5,dropout5,filters_conv2d_6,maxpooling_6,dropout6,filters_conv2d_7,maxpooling_7,dropout7,filters_conv2d_8,maxpooling_8,dropout8,dropout_dense,dense_1,dense_2,dense_3,opt,lr,validation_acc,time_taken
+0,16,86,None,0.3,41,None,0.4,519,None,0.5,25,None,0.4,303,None,0.4,20,None,0.4,107,2,0.4,21,None,0.3,0.3,113,529,128,RMSprop,0.001,0.3333333333333333,10506.95177578926
+1,32,27,None,0.4,None,2,0.4,409,2,0.2,316,2,0.5,76,2,0.5,61,2,0.4,482,None,0.4,219,2,0.5,0.4,250,121,512,Adam,1e-05,0.5613188580858884,5572.776232481003
+2,8,385,2,0.4,292,None,0.5,412,2,0.4,180,None,0.2,None,2,0.2,50,None,0.3,27,2,0.2,482,2,0.2,0.4,None,126,512,Adagrad,0.001,0.7852834740651388,6783.560234308243
+3,16,505,None,0.4,504,2,0.2,19,None,0.4,505,None,0.3,418,2,0.2,496,None,0.5,14,None,0.3,485,2,0.2,0.4,271,None,512,Adagrad,1e-05,0.3341375150784077,26970.526990175247
