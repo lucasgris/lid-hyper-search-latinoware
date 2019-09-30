@@ -1,0 +1,9 @@
+run,batch_size,filters_conv2d_1,maxpooling_1,dropout1,filters_conv2d_2,maxpooling_2,dropout2,filters_conv2d_3,maxpooling_3,dropout3,filters_conv2d_4,maxpooling_4,dropout4,filters_conv2d_5,maxpooling_5,dropout5,filters_conv2d_6,maxpooling_6,dropout6,filters_conv2d_7,maxpooling_7,dropout7,filters_conv2d_8,maxpooling_8,dropout8,dropout_dense,dense_1,dense_2,dense_3,opt,lr,validation_acc,time_taken
+0,8,395,None,0.3,402,None,0.2,304,2,0.4,391,2,0.4,289,None,0.2,483,None,0.5,188,None,0.4,486,None,0.4,0.4,239,266,128,Adagrad,1e-05,0.41033925686591277,59232.414538145065
+1,32,81,None,0.2,72,None,0.5,89,2,0.4,None,None,0.3,73,None,0.4,107,2,0.5,306,2,0.3,199,None,0.3,0.3,132,None,128,RMSprop,1e-05,0.4865912762905361,57549.49841237068
+2,16,387,2,0.3,45,None,0.5,217,2,0.4,200,None,0.2,184,None,0.3,63,2,0.5,513,2,0.3,402,None,0.5,0.4,None,239,128,Adagrad,1e-05,0.2678513731825525,57620.22069597244
+3,32,80,2,0.2,None,None,0.2,103,2,0.4,484,2,0.3,None,None,0.5,56,2,0.2,292,None,0.2,205,2,0.2,0.2,None,None,None,Adagrad,1e-05,0.2914378029849495,57682.09497642517
+4,32,48,None,0.2,205,None,0.3,280,2,0.4,389,2,0.2,320,None,0.3,69,None,0.2,None,2,0.4,380,None,0.2,0.3,267,None,512,Adagrad,1e-05,0.41033925686591277,57834.30027961731
+5,8,44,None,0.5,21,2,0.3,19,None,0.4,77,2,0.4,500,2,0.2,207,2,0.4,18,None,0.3,504,None,0.5,0.4,None,493,128,RMSprop,0.0001,0.8100161550888529,57645.74224495888
+6,16,82,None,0.4,301,None,0.3,48,2,0.5,410,2,0.2,208,2,0.3,None,2,0.3,36,None,0.4,502,2,0.4,0.3,None,500,256,RMSprop,0.001,0.2678513731825525,57608.2201321125
+7,16,86,None,0.3,504,2,0.3,116,2,0.5,116,None,0.2,184,2,0.2,502,None,0.4,519,2,0.4,513,None,0.3,0.4,112,246,None,Adagrad,1e-06,0.30016155089815905,57605.836896419525
