@@ -48,7 +48,7 @@ gitdb2==2.0.5
 GitPython==2.1.11
 grpcio==1.12.1
 h5py==2.8.0
-html5lib==0.9999999
+html5lib==0.999999999
 hyperas==0.4
 hyperopt==0.1.1
 idna==2.8
